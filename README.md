@@ -8,10 +8,6 @@ ODS 6: Agua limpia y saneamiento
 
 Pregunta: 
 
-Datos
-
-Fuente Justificación
-
 Enfoque
 
 ¿qué queremos visibilizar o demostrar con los datos?
@@ -19,3 +15,13 @@ Enfoque
 Dudas
 
 ¿qué parte de la historia necesita más claridad?
+
+Referencias
+
+https://sinav30.conagua.gob.mx:8080/Estadistico/#/grado
+
+https://sinav30.conagua.gob.mx:8080/Estadistico/#/repda
+
+https://sinav30.conagua.gob.mx:8080/Estadistico/#/aguaRenovable
+
+
