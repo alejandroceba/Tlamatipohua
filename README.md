@@ -1,27 +1,25 @@
 Tlamatipohua
 
-Milena Fernanda Rivera Hernández
-Carlos Olamendi Rincón
-Alejandro Cerda Barroso
+¡HOLA! Bienvenid@ a nuestro repositorio de nuestro tablero para el HackODS UNAM 2026. Somos un equipo multidisciplinario que comparte la pasión por colaborar en proyectos con impactos reales y nuestro objetivo es convertirnos en agentes de cambio.
 
-ODS 6: Agua limpia y saneamiento
+SOMOS: 
+- Milena Fernanda Rivera Hernández
+- Carlos Olamendi Rincón
+- Alejandro Cerda Barroso
 
-Pregunta: 
+NUESTRO ENFOQUE ES:
+- ODS 6: Agua limpia y saneamiento
 
-Enfoque
+PROBLEMÁTICA: Distribución y Uso del agua en México 
 
-¿qué queremos visibilizar o demostrar con los datos?
 
-Dudas
+Referencias relevantes sobre el proyecto:
 
-¿qué parte de la historia necesita más claridad?
+HACKODS 2026:
+-https://hackods.github.io
 
-Referencias
-
-https://sinav30.conagua.gob.mx:8080/Estadistico/#/grado
-
-https://sinav30.conagua.gob.mx:8080/Estadistico/#/repda
-
-https://sinav30.conagua.gob.mx:8080/Estadistico/#/aguaRenovable
+EVALUACICIÓN:
+- https://hackods.github.io/rubrica20.html
+- https://hackods.github.io/mentorias.html
 
 
