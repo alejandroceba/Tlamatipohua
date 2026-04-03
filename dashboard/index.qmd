@@ -1,64 +1,352 @@
 ---
-title: "¿?"
-author: "Tlamatipohua"
-format: dashboard
-theme: 
-    light: flatly
-    dark: darkly
+format: html
 bibliography: refs.bib
 csl: ieee-access.csl
+resources:
+    - ../datos/rha2023.json
+execute:
+    echo: false
+    cache: true
+jupyter: python3
+lang: es
 ---
 
 ```{python}
 import pandas as pd
 import numpy as np
 import plotly.express as px
-```
+import shutil
+from pathlib import Path
 
-@comision_nacional_del_agua_conagua_agua_2021, @comision_nacional_del_agua_conagua_repda_2021, @instituto_nacional_de_estadistica_y_geografia_inegi_poblacion_2020
-
-```{python}
 f = "../datos/Poblacion_01.xlsx"
 poblacion = pd.read_excel(f,skiprows=6,nrows=32,usecols=["Entidad federativa","Total"])
 f = "../datos/agua_renovable_estatal2021.xlsx"
 arpcedo_2021 = pd.read_excel(f)
-arpcedo_2021["poblacion2020_hab"] = poblacion["Total"]
-arpcedo_2021["arpc_m3/hab"] = arpcedo_2021["Agua Renovable (hm³/año)"] * 1e6 / arpcedo_2021["poblacion2020_hab"]
 f = "../datos/repda_estatal2021.xlsx"
 repda_2021 = pd.read_excel(f)
+geojson_src = Path("../datos/rha2023.json")
+geojson_dst = Path("rha2023.json")
+if (not geojson_dst.exists()) or (geojson_src.stat().st_mtime > geojson_dst.stat().st_mtime):
+    shutil.copy2(geojson_src, geojson_dst)
+geojson_rha = str(geojson_dst)
+```
+
+:::: {.columns}
+
+::: {.column width="20%"}
+¿Por qué en estados como Aguascalientes y Guanajuato el consumo de agua es mayor que el agua disponible? @comision_nacional_del_agua_conagua_agua_2021, @comision_nacional_del_agua_conagua_repda_2021, @instituto_nacional_de_estadistica_y_geografia_inegi_poblacion_2020
+:::
+
+::: {.column width="80%"}
+
+```{python}
+arpcedo_2021["poblacion2020_hab"] = poblacion["Total"]
+arpcedo_2021["arpc_m3/hab"] = arpcedo_2021["Agua Renovable (hm³/año)"] * 1e6 / arpcedo_2021["poblacion2020_hab"]
 numeric_cols = [col for col in repda_2021.columns if col != "Estado"]
 repda_2021[numeric_cols] = repda_2021[numeric_cols].replace(",", "", regex=True)
 repda_2021[numeric_cols] = repda_2021[numeric_cols].replace(r"[^\d.\-]", "", regex=True)
 repda_2021[numeric_cols] = repda_2021[numeric_cols].apply(pd.to_numeric, errors="coerce").astype(float)
+name_mapping = {
+    'Coahuila de Zaragoza': 'Coahuila',
+    'Michoacán de Ocampo': 'Michoacán',
+    'Veracruz de Ignacio de la Llave': 'Veracruz',
+    #'México': 'Estado de México'
+}
+repda_2021['Estado'] = repda_2021['Estado'].replace(name_mapping)
 repda_2021["consuntivo_hm3"] = repda_2021["Total por estado"] - repda_2021["Conservación ecológica (N)"] - repda_2021["Eléctricidad ó Hidroeléctrica (J)"]
 repda_2021["poblacion_hab"] = arpcedo_2021["Población (Millones de habitantes)"] * 1e6
 repda_2021["consuntivo_l"] = repda_2021["consuntivo_hm3"] * 1e9
-repda_2021["cpc_l/hab"] = repda_2021["consuntivo_l"] / repda_2021["poblacion_hab"]
-repda_2021["arpc_l/hab"] = arpcedo_2021["arpc_m3/hab"] * 1e3
+repda_2021["cpc_Ml/hab"] = repda_2021["consuntivo_l"] / (repda_2021["poblacion_hab"] * 1e6)
+repda_2021["arpc_Ml/hab"] = arpcedo_2021["arpc_m3/hab"] * 1e3 / 1e6
 repda_2021_plot = repda_2021.melt(
     id_vars="Estado",
-    value_vars=["cpc_l/hab", "arpc_l/hab"],
+    value_vars=["cpc_Ml/hab", "arpc_Ml/hab"],
     var_name="Indicador",
-    value_name="Valor"
+    value_name="Millones de litros por habitante"
  )
+repda_2021_plot["Indicador"] = repda_2021_plot["Indicador"].replace({
+    "cpc_Ml/hab": "Consumo",
+    "arpc_Ml/hab": "Agua renovable disponible"
+})
 
 estados = repda_2021["Estado"].tolist()
 
 fig = px.bar(
     repda_2021_plot,
     y="Estado",
-    x="Valor",
+    x="Millones de litros por habitante",
     color="Indicador",
     barmode="group",
     orientation="h",
-    category_orders={"Estado": estados}
+    category_orders={
+        "Estado": estados,
+        "Indicador": ["Agua renovable disponible", "Consumo"]
+    },
+    color_discrete_map={
+        "Consumo": "#636EFA",
+        "Agua renovable disponible": "#EF553B"
+    }
  )
 
 fig.update_layout(
-    xaxis_title="Litros por habitante",
-    #yaxis_title="Estado",
-    #legend_title_text="Serie",
+    xaxis_title="Millones de litros por habitante",
+    yaxis_title=None,
+    legend_title_text=None,
+    legend_traceorder="reversed",
     height=max(700, 28 * len(estados)),
-    #margin={"l": 220, "r": 30, "t": 40, "b": 40}
  )
 ```
+
+:::
+
+::::
+
+
+
+
+
+:::: {.columns}
+
+::: {.column width="20%"}
+Mientras que en Chiapas el agua renovable disponible es mucho mayor que el consumo.
+:::
+
+::: {.column width="80%"}
+
+```{python}
+fig = px.bar(
+    repda_2021_plot,
+    y="Estado",
+    x="Millones de litros por habitante",
+    color="Indicador",
+    barmode="group",
+    orientation="h",
+    category_orders={
+        "Estado": estados,
+        "Indicador": ["Agua renovable disponible", "Consumo"]
+    },
+    color_discrete_map={
+        "Consumo": "#636EFA",
+        "Agua renovable disponible": "#EF553B"
+    }
+ )
+
+fig.update_layout(
+    xaxis_title="Millones de litros por habitante",
+    yaxis_title=None,
+    legend_title_text=None,
+    legend_traceorder="reversed",
+    height=max(700, 28 * len(estados)),
+ )
+```
+
+:::
+
+::::
+
+Grado de presión en regiones hidrológico-administrativas
+
+```{python}
+anos = np.arange(2003,2022+1)
+for ano in anos:
+    f = f"../datos/Grado_de_Presion_{ano}.xlsx"
+    if ano == 2003:
+        gp = pd.read_excel(f,usecols=["Región Hidrológico-Administrativa","Grado de Presión (%)"])
+        gp.columns = ["RHA",ano]
+    else:
+        gp_ano = pd.read_excel(f,usecols=["Grado de Presión (%)"])
+        gp_ano.columns = [ano]
+        gp[ano] = gp_ano[ano]
+gp["RHA"] = gp["RHA"].str.replace(r"^\s*[IVXLCDM]+\s*[-.]?\s*", "", regex=True)
+name_mapping = {
+    "Península de Baja California": "Península De Baja California",
+    'Cuencas Centrales del Norte': 'Cuencas Centrales Del Norte',
+    "Península de Yucatán": "Península De Yucatán",
+    'Aguas del Valle de México': 'Valle de México'
+}
+gp['RHA'] = gp['RHA'].replace(name_mapping)
+gp_largo = pd.melt(gp,id_vars=["RHA"],var_name="Año",value_name="Grado de presión (%)")
+gp_largo["Año"] = gp_largo["Año"].astype(int)
+fig = px.choropleth(gp_largo,geojson=geojson_rha,locations="RHA",featureidkey="properties.rha",color="Grado de presión (%)",animation_frame="Año",color_continuous_scale="Viridis")
+fig.update_geos(fitbounds="locations",visible=False)
+fig.show()
+```
+
+Pero, ¿quién consume el agua? 
+
+```{python}
+import plotly.graph_objects as go
+import requests
+
+usage_cols = {
+    'Acuacultura (D)': 'Acuacultura',
+    'Agrícola (inscrito + pendiente) (A)': 'Agrícola',
+    'Agroindustrial (B)': 'Agroindustrial',
+    'Doméstico ( C)': 'Doméstico',
+    'Comercio (K)': 'Comercio',
+    'Industrial (F1)': 'Industrial',
+    'Múltiples (I)': 'Múltiples',
+    'Otros (L)': 'Otros',
+    'Pecuario (G)': 'Pecuario',
+    'Público urbano (H)': 'Público urbano',
+    'Servicios ( E )': 'Servicios',
+    'Termoeléctricas (F2)': 'Termoeléctricas'
+}
+
+colors = [
+    '#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A', '#19d3f3',
+    '#FF6692', '#B6E880', '#FF97FF', '#FECB52', '#1f77b4', '#ff7f0e'
+]
+
+estados = repda_2021["Estado"].tolist()
+
+# --- 1) Gráfica de barras ---
+fig_bar = go.Figure()
+for idx, (col_orig, col_label) in enumerate(usage_cols.items()):
+    fig_bar.add_trace(go.Bar(
+        y=repda_2021["Estado"],
+        x=repda_2021[col_orig],
+        name=col_label,
+        marker_color=colors[idx],
+        orientation='h'
+    ))
+
+fig_bar.update_layout(
+    barmode='stack',
+    xaxis_title='Hm³/año',
+    yaxis_title='Estado',
+    height=max(700, 28 * len(estados)),
+    margin={"l": 220, "r": 30, "t": 40, "b": 40},
+    hovermode='x unified',
+    legend=dict(orientation='v', yanchor='top', y=1, xanchor='left', x=1.01)
+)
+fig_bar.update_yaxes(tickmode="array", tickvals=estados, ticktext=estados, automargin=True)
+
+# --- 2) Gráfica de pastel (dropdown por estado) ---
+fig_pie = go.Figure()
+for state_idx, estado in enumerate(estados):
+    row_data = repda_2021[repda_2021["Estado"] == estado].iloc[0]
+    labels = list(usage_cols.values())
+    values = [row_data[col_key] for col_key in usage_cols.keys()]
+
+    fig_pie.add_trace(go.Pie(
+        labels=labels,
+        values=values,
+        name=estado,
+        marker=dict(colors=colors),
+        visible=(state_idx == 0),
+        hovertemplate="<b>%{label}</b><br>Hm³/año: %{value:.2f}<br>%{percent}<extra></extra>"
+    ))
+
+pie_buttons = []
+for idx, estado in enumerate(estados):
+    visibility = [False] * len(estados)
+    visibility[idx] = True
+    pie_buttons.append(dict(
+        label=estado,
+        method='update',
+        args=[{'visible': visibility}, {'title': f'Desglose de uso de agua en {estado}'}]
+    ))
+
+fig_pie.update_layout(
+    updatemenus=[dict(
+        buttons=pie_buttons,
+        direction="down",
+        pad={"r": 10, "t": 10},
+        showactive=True,
+        x=0.0,
+        xanchor="left",
+        y=1.15,
+        yanchor="top"
+    )],
+    title=f'Desglose de uso de agua en {estados[0]}',
+    height=700,
+    showlegend=True,
+    legend=dict(orientation='v', yanchor='middle', y=0.5, xanchor='left', x=1.02)
+)
+
+# --- 3) Mapa (dropdown por uso) ---
+geojson_url = "https://raw.githubusercontent.com/angelnmara/geojson/master/mexicoHigh.json"
+geojson_data = requests.get(geojson_url).json()
+
+fig_map = go.Figure()
+for usage_idx, (col_key, col_label) in enumerate(usage_cols.items()):
+    df_usage = repda_2021[['Estado', col_key]].rename(columns={col_key: 'Volumen'})
+
+    fig_map.add_trace(go.Choropleth(
+        locations=df_usage['Estado'],
+        z=df_usage['Volumen'],
+        customdata=df_usage[['Estado']],
+        locationmode='geojson-id',
+        colorscale='Viridis',
+        featureidkey='properties.name',
+        geojson=geojson_data,
+        marker_line_width=0.5,
+        colorbar=dict(
+            title=dict(text="Hm³/año", font=dict(size=12)),
+            thickness=20,
+            len=0.8,
+            ticklabelposition="outside",
+            tickfont=dict(size=11)
+        ),
+        hovertemplate="<b>%{customdata[0]}</b><br>" + col_label + ": %{z:.2f} Hm³/año<extra></extra>",
+        visible=(usage_idx == 0),
+        name=col_label
+    ))
+
+map_buttons = []
+for idx, (_, col_label) in enumerate(usage_cols.items()):
+    visibility = [False] * len(usage_cols)
+    visibility[idx] = True
+    map_buttons.append(dict(
+        label=col_label,
+        method='update',
+        args=[{'visible': visibility}, {'title': f'Consumo de agua por {col_label} en México (Hm³/año)'}]
+    ))
+
+_ = fig_map.update_layout(
+    updatemenus=[dict(
+        buttons=map_buttons,
+        direction="down",
+        pad={"r": 10, "t": 10},
+        showactive=True,
+        x=0.0,
+        xanchor="left",
+        y=1.05,
+        yanchor="top"
+    )],
+    title=f'Consumo de agua por {list(usage_cols.values())[0]} en México (Hm³/año)',
+    geo=dict(
+        fitbounds='locations',
+        showland=True,
+        showframe=False,
+        showcoastlines=False,
+        landcolor='rgb(243, 243, 243)',
+        projection_type='mercator'
+    ),
+    height=700,
+    width=1000
+)
+```
+
+::: {.panel-tabset}
+
+## Gráfica de barras
+
+```{python}
+fig_bar
+```
+
+## Gráfica de pastel
+
+```{python}
+fig_pie
+```
+
+## Mapa
+
+```{python}
+fig_map
+```
+
+:::
