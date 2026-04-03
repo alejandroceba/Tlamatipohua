@@ -75,6 +75,42 @@ Calcular la huella hídrica de la persona usuaria para explorar diferentes escen
 - **Resultado**: Se invirtió el orden de trazado en `category_orders` a `['Agua renovable disponible', 'Consumo']` para que `Consumo` se dibuje después y quede visualmente arriba. Al mismo tiempo, se configuró `legend_traceorder='reversed'` para conservar en la leyenda el orden visible `Consumo` (azul) arriba de `Agua renovable disponible` (rojo).
 - **Decisión**: Cuando hay conflicto entre orden de dibujo y orden de leyenda en barras agrupadas horizontales, separar ambos controles (orden de trazado y orden de leyenda) para lograr consistencia visual.
 
+### 2026-04-03 | GitHub Copilot (GPT-5.3-Codex) | Corregir 404 de `/rha2023.json` durante `quarto preview`.
+- **Tarea**: Resolver el error de vista previa donde Plotly solicitaba `/rha2023.json` y el servidor de preview respondía 404, aunque el render sí finalizaba.
+- **Prompt**: still does not work when previewing:   /rha2023.json (404: Not Found)
+- **Resultado**: Se ajustó `dashboard/index.qmd` para copiar `../datos/rha2023.json` al directorio de trabajo (`dashboard/rha2023.json`) antes de crear el mapa, manteniendo `geojson="rha2023.json"`. Luego se validó con `uv run quarto preview dashboard/index.qmd --no-browser --port 4313` y `curl http://127.0.0.1:4313/rha2023.json`, obteniendo código HTTP `200`.
+- **Decisión**: En `preview`, garantizar explícitamente la presencia local de recursos estáticos usados por Plotly cuando el servidor no expone rutas relativas fuera del directorio del documento.
+
+### 2026-04-03 | GitHub Copilot (GPT-5.3-Codex) | Crear gráfica de barras apiladas horizontales del uso de agua por sector y estado.
+- **Tarea**: Construir una visualización que desagregue el volumen de agua concesionado por estado en sus 12 categorías de uso (Acuacultura, Agrícola, Agroindustrial, Doméstico, Comercio, Industrial, Múltiples, Otros, Pecuario, Público urbano, Servicios, Termoeléctricas), en formato de barras horizontales apiladas.
+- **Prompt**: create a horizontal stacked bar chart with repda_2021: on y-axis, the column "Estado", and on the x-axis, the stacked values of all the water usage columns from D to F2. do not repeat colors and remove the uppercase letters on each use
+- **Resultado**: Se creó una nueva celda en `scripts/001_EDA.ipynb` que genera la gráfica apilada mediante `plotly.graph_objects.Bar`. Se mapeó cada columna de uso a una etiqueta legible (ej: `'Acuacultura (D)'` → `'Acuacultura'`), se asignaron 12 colores distintos (azul, rojo, verde, púrpura, naranja, cian, rosa, verde claro, magenta, amarillo, azul oscuro, naranja oscuro) sin repetición, y se configuró `barmode='stack'`. El gráfico tiene altura dinámica, márgenes ajustados y leyenda posicionada a la derecha.
+- **Decisión**: Usar desagregación visual por color sin etiquetas técnicas (letras de código REPDA) para mejorar accesibilidad y legibilidad de la composición sectorial del agua concesionada en cada entidad.
+
+### 2026-04-03 | GitHub Copilot (GPT-5.3-Codex) | Crear gráfica de pastel por estado con selector desplegable.
+- **Tarea**: Generar una segunda visualización para mostrar la composición de usos del agua por entidad con interacción por estado.
+- **Prompt**: (solicitud en la sesión) construir gráfica de pastel con dropdown por estado para `repda_2021` usando las mismas categorías de uso y colores consistentes.
+- **Resultado**: Se agregó una celda que crea una traza `go.Pie` por estado y un `updatemenus` tipo dropdown para alternar entre entidades. Se mantuvo el mismo mapeo de categorías y paleta de colores para consistencia con la barra apilada, además de `hovertemplate` con valor en Hm³/año y porcentaje.
+- **Decisión**: Mantener consistencia de colores y etiquetas entre visualizaciones para permitir comparación rápida entre barra apilada y pastel sin reaprender codificación visual.
+
+### 2026-04-03 | GitHub Copilot (GPT-5.3-Codex) | Crear mapa coroplético de consumo por uso con dropdown por categoría.
+- **Tarea**: Construir una tercera visualización geográfica que muestre el volumen por estado para cada categoría de uso.
+- **Prompt**: (solicitud en la sesión) crear mapa por estado con selector de uso de agua y conservar formato en Hm³/año.
+- **Resultado**: Se implementó una figura `go.Choropleth` con una traza por categoría de uso, `featureidkey='properties.name'` y dropdown para cambiar la categoría visible. Se usó el GeoJSON de estados de México y se configuró `fitbounds='locations'` para ajustar el encuadre al país.
+- **Decisión**: Usar un mapa por categoría seleccionable (en lugar de múltiples mapas simultáneos) para reducir saturación visual y mantener foco analítico por tipo de uso.
+
+### 2026-04-03 | GitHub Copilot (GPT-5.3-Codex) | Integrar las 3 gráficas en pestañas Quarto y eliminar HTML custom.
+- **Tarea**: Mostrar las tres visualizaciones en pestañas dentro del dashboard, sin bloques HTML/JS manuales.
+- **Prompt**: do not use html chunks to display, graphs will be put in index.qmd, so use ::: {.panel-tabset}
+- **Resultado**: Se retiró la estrategia de tabs en HTML/JavaScript y se migró a pestañas nativas de Quarto con `::: {.panel-tabset}` en `dashboard/index.qmd`, incluyendo tres chunks (barras, pastel y mapa).
+- **Decisión**: Priorizar componentes nativos de Quarto para mejor mantenibilidad, compatibilidad en render y menor complejidad frente a incrustar HTML personalizado.
+
+### 2026-04-03 | GitHub Copilot (GPT-5.3-Codex) | Depurar visualización final: mapa fuera del tabset y hover sin nombre de estado.
+- **Tarea**: Corregir dos regresiones de presentación en la tercera gráfica: (1) mapa renderizado antes del tabset y (2) tooltip sin nombre de estado.
+- **Prompt**: the tabset displays correctly but before the tabset, the map appears accidentaly; in map, the name of the state does not show when placin mouse on it
+- **Resultado**: (1) Se evitó salida implícita del chunk asignando `_ = fig_map.update_layout(...)`, eliminando el render accidental previo al tabset. (2) Se agregó `customdata=df_usage[['Estado']]` y se cambió el `hovertemplate` a `%{customdata[0]}` para mostrar el nombre del estado al pasar el cursor.
+- **Decisión**: Controlar explícitamente la salida final de chunks de Quarto/Notebook y anclar texto de hover a datos explícitos (`customdata`) para evitar dependencias de tokens implícitos de Plotly.
+
 
 
 

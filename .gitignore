@@ -1,0 +1,3 @@
+# Ignore generated notebook execution cache
+.jupyter_cache/
+dashboard/.jupyter_cache/
