@@ -1,351 +1,526 @@
 ---
-bibliography: refs.bib
-csl: ieee-access.csl
-resources:
-    - rha2023.json
-execute:
-    echo: false
-    cache: true
+title: "Tlamatipohua — Deuda Líquida"
+format:
+  html:
+    theme: none
+    toc: false
+    page-layout: custom
 jupyter: python3
-lang: es
+execute:
+  echo: false
+  warning: false
 ---
+
+::: {.topbar}
+::: {.topbar-logo}
+[]{.dot} Tlamatipohua
+:::
+::: {.topbar-nav}
+[Inicio](#gancho)
+[Calculadora](#calculadora)
+[Inequidad](#brecha)
+[Día Cero](#dia-cero)
+[Acción](#resolucion)
+:::
+[ODS 6 · México]{.topbar-badge}
+:::
+
+::: {#gancho .hero}
+::: {.hero-content}
+::: {.hero-tag}
+🌊 Hackathon ODS 6 · Deuda Líquida
+:::
+# ¿Qué tan profunda es la [deuda líquida]{.hero-emphasis} que tu rutina diaria contrae con el futuro y la desigualdad hídrica de México? {.hero-title}
+
+::: {.hero-sub}
+El agua no es un recurso infinito — es un préstamo ecológico que rara vez devolvemos. Cada ducha, cada café, cada kilo de carne tiene un precio invisible.
+:::
+
+::: {.hero-stats}
+::: {.hero-stat}
+[68.1 km³]{.num}
+[concesionados / año (REPDA 2023)]{.label}
+:::
+
+::: {.hero-stat}
+[121.9 km³]{.num}
+[agua renovable disponible]{.label}
+:::
+
+::: {.hero-stat}
+[55.9%]{.num}
+[grado de presión Norte/Centro]{.label}
+:::
+:::
+
+:::
+:::
+
+::: {.section-divider}
+:::
+
+::: {.section .section-alt}
+::: {.page-wrapper}
+
+::: {.section-header}
+::: {}
+[Panorama Nacional]{.section-label}
+
+[Indicadores clave del Indicador 6.4.2 (CONAGUA/INEGI). Los acuíferos se recargan más lento de lo que los vaciamos.]{.section-desc}
+:::
+:::
+
+::: {.kpi-grid}
+
+::: {.card .card-accent}
+::: {.card-title}
+Extracción Total 2023
+:::
+::: {.card-value}
+90,629
+:::
+::: {.card-unit}
+millones de m³ extraídos
+:::
+[↑ +5.8% vs 2015]{.card-trend .up}
+:::
+
+::: {.card .card-accent}
+::: {.card-title}
+Agua Renovable Total
+:::
+::: {.card-value}
+472,195
+:::
+::: {.card-unit}
+millones de m³ disponibles
+:::
+[↓ Solo 19% accesible]{.card-trend .down}
+:::
+
+::: {.card .card-accent}
+::: {.card-title}
+Concesionada / Asignada
+:::
+::: {.card-value}
+68.1 km³
+:::
+::: {.card-unit}
+comprometida legalmente (REPDA)
+:::
+:::
+
+::: {.card .card-accent}
+::: {.card-title}
+Presión Zona Norte-Centro
+:::
+::: {.card-value}
+55.9%
+:::
+::: {.card-unit}
+Indicador 6n.2.1 · 2023
+:::
+[⚠ Umbral crítico: >55%]{.card-trend .up}
+:::
+
+:::
+::: {.card .card-spacious}
+::: {.card-title .card-title--large}
+Extracción Nacional vs Agua Renovable (Acuíferos) 2012–2023 — Indicador 6.4.2
+:::
 
 ```{python}
 import pandas as pd
-import numpy as np
-import plotly.express as px
-import shutil
-from pathlib import Path
+import plotly.graph_objects as go
 
-f = "../datos/Poblacion_01.xlsx"
-poblacion = pd.read_excel(f,skiprows=6,nrows=32,usecols=["Entidad federativa","Total"])
-f = "../datos/agua_renovable_estatal2021.xlsx"
-arpcedo_2021 = pd.read_excel(f)
-f = "../datos/repda_estatal2021.xlsx"
-repda_2021 = pd.read_excel(f)
-geojson_src = Path("../datos/rha2023.json")
-geojson_dst = Path("rha2023.json")
-if (not geojson_dst.exists()) or (geojson_src.stat().st_mtime > geojson_dst.stat().st_mtime):
-    shutil.copy2(geojson_src, geojson_dst)
-geojson_rha = str(geojson_dst)
-```
-
-:::: {.columns}
-
-::: {.column width="20%"}
-¿Por qué en estados como Aguascalientes y Guanajuato el consumo de agua es mayor que el agua disponible? @comision_nacional_del_agua_conagua_agua_2021, @comision_nacional_del_agua_conagua_repda_2021, @instituto_nacional_de_estadistica_y_geografia_inegi_poblacion_2020
-:::
-
-::: {.column width="80%"}
-
-```{python}
-arpcedo_2021["poblacion2020_hab"] = poblacion["Total"]
-arpcedo_2021["arpc_m3/hab"] = arpcedo_2021["Agua Renovable (hm³/año)"] * 1e6 / arpcedo_2021["poblacion2020_hab"]
-numeric_cols = [col for col in repda_2021.columns if col != "Estado"]
-repda_2021[numeric_cols] = repda_2021[numeric_cols].replace(",", "", regex=True)
-repda_2021[numeric_cols] = repda_2021[numeric_cols].replace(r"[^\d.\-]", "", regex=True)
-repda_2021[numeric_cols] = repda_2021[numeric_cols].apply(pd.to_numeric, errors="coerce").astype(float)
-name_mapping = {
-    'Coahuila de Zaragoza': 'Coahuila',
-    'Michoacán de Ocampo': 'Michoacán',
-    'Veracruz de Ignacio de la Llave': 'Veracruz',
-    #'México': 'Estado de México'
+# Datos
+data = {
+    'Año': [2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023],
+    'Extraccion': [None, None, None, 85664, 86577, 87842, 88840, 89351, 89548, 89944, 89804, 90629],
+    'Concesionada': [64900, 63400, 65600, 66100, 66400, 66800, 67400, 67300, 67300, 67500, 67800, 68100]
 }
-repda_2021['Estado'] = repda_2021['Estado'].replace(name_mapping)
-repda_2021["consuntivo_hm3"] = repda_2021["Total por estado"] - repda_2021["Conservación ecológica (N)"] - repda_2021["Eléctricidad ó Hidroeléctrica (J)"]
-repda_2021["poblacion_hab"] = arpcedo_2021["Población (Millones de habitantes)"] * 1e6
-repda_2021["consuntivo_l"] = repda_2021["consuntivo_hm3"] * 1e9
-repda_2021["cpc_Ml/hab"] = repda_2021["consuntivo_l"] / (repda_2021["poblacion_hab"] * 1e6)
-repda_2021["arpc_Ml/hab"] = arpcedo_2021["arpc_m3/hab"] * 1e3 / 1e6
-repda_2021_plot = repda_2021.melt(
-    id_vars="Estado",
-    value_vars=["cpc_Ml/hab", "arpc_Ml/hab"],
-    var_name="Indicador",
-    value_name="Millones de litros por habitante"
- )
-repda_2021_plot["Indicador"] = repda_2021_plot["Indicador"].replace({
-    "cpc_Ml/hab": "Consumo",
-    "arpc_Ml/hab": "Agua renovable disponible"
-})
+df = pd.DataFrame(data)
 
-estados = repda_2021["Estado"].tolist()
+fig = go.Figure()
 
-fig = px.bar(
-    repda_2021_plot,
-    y="Estado",
-    x="Millones de litros por habitante",
-    color="Indicador",
-    barmode="group",
-    orientation="h",
-    category_orders={
-        "Estado": estados,
-        "Indicador": ["Agua renovable disponible", "Consumo"]
-    },
-    color_discrete_map={
-        "Consumo": "#636EFA",
-        "Agua renovable disponible": "#EF553B"
-    }
- )
+# Línea Superior (Extracción)
+fig.add_trace(go.Scatter(
+    x=df['Año'], y=df['Extraccion'],
+    fill='tozeroy',
+    mode='lines+markers',
+    name='Extracción (M m³)',
+    line=dict(color='#0066FF', width=3, shape='spline'), # shape='spline' suaviza la curva
+    fillcolor='rgba(0,102,255,0.08)',
+    marker=dict(size=6, color='#0066FF')
+))
+
+# Línea Inferior (Concesionada)
+fig.add_trace(go.Scatter(
+    x=df['Año'], y=df['Concesionada'],
+    mode='lines+markers',
+    name='Concesionada (km³ × 1000)',
+    line=dict(color='#00C8B4', width=2, dash='dash', shape='spline'),
+    marker=dict(size=6, color='#00C8B4')
+))
 
 fig.update_layout(
-    xaxis_title="Millones de litros por habitante",
-    yaxis_title=None,
-    legend_title_text=None,
-    legend_traceorder="reversed",
-    height=max(700, 28 * len(estados)),
- )
-```
-
-:::
-
-::::
-
-
-
-
-
-:::: {.columns}
-
-::: {.column width="20%"}
-Mientras que en Chiapas el agua renovable disponible es mucho mayor que el consumo.
-:::
-
-::: {.column width="80%"}
-
-```{python}
-fig = px.bar(
-    repda_2021_plot,
-    y="Estado",
-    x="Millones de litros por habitante",
-    color="Indicador",
-    barmode="group",
-    orientation="h",
-    category_orders={
-        "Estado": estados,
-        "Indicador": ["Agua renovable disponible", "Consumo"]
-    },
-    color_discrete_map={
-        "Consumo": "#636EFA",
-        "Agua renovable disponible": "#EF553B"
-    }
- )
-
-fig.update_layout(
-    xaxis_title="Millones de litros por habitante",
-    yaxis_title=None,
-    legend_title_text=None,
-    legend_traceorder="reversed",
-    height=max(700, 28 * len(estados)),
- )
-```
-
-:::
-
-::::
-
-Grado de presión en regiones hidrológico-administrativas
-
-```{python}
-anos = np.arange(2003,2022+1)
-for ano in anos:
-    f = f"../datos/Grado_de_Presion_{ano}.xlsx"
-    if ano == 2003:
-        gp = pd.read_excel(f,usecols=["Región Hidrológico-Administrativa","Grado de Presión (%)"])
-        gp.columns = ["RHA",ano]
-    else:
-        gp_ano = pd.read_excel(f,usecols=["Grado de Presión (%)"])
-        gp_ano.columns = [ano]
-        gp[ano] = gp_ano[ano]
-gp["RHA"] = gp["RHA"].str.replace(r"^\s*[IVXLCDM]+\s*[-.]?\s*", "", regex=True)
-name_mapping = {
-    "Península de Baja California": "Península De Baja California",
-    'Cuencas Centrales del Norte': 'Cuencas Centrales Del Norte',
-    "Península de Yucatán": "Península De Yucatán",
-    'Aguas del Valle de México': 'Valle de México'
-}
-gp['RHA'] = gp['RHA'].replace(name_mapping)
-gp_largo = pd.melt(gp,id_vars=["RHA"],var_name="Año",value_name="Grado de presión (%)")
-gp_largo["Año"] = gp_largo["Año"].astype(int)
-fig = px.choropleth(gp_largo,geojson=geojson_rha,locations="RHA",featureidkey="properties.rha",color="Grado de presión (%)",animation_frame="Año",color_continuous_scale="Viridis")
-fig.update_geos(fitbounds="locations",visible=False)
+    template="plotly_white",
+    margin=dict(l=10, r=20, t=30, b=20),
+    height=280,
+    # Configuración de la Leyenda arriba y centrada
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.05,
+        xanchor="center",
+        x=0.5,
+        font=dict(color="#4A5568")
+    ),
+    xaxis=dict(
+        showgrid=False,
+        tickmode='linear',
+        tick0=2012,
+        dtick=1,
+        color="#94A3B8"
+    ),
+    yaxis=dict(
+        gridcolor='#F0F5FF',
+        color="#94A3B8",
+        # Custom ticks para que se vea como en la imagen (e.g., 60k, 70k)
+        tickvals=[60000, 70000, 80000, 90000],
+        ticktext=['60k', '70k', '80k', '90k'],
+        range=[55000, 95000] # El eje Y no empieza en 0
+    ),
+    paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='rgba(0,0,0,0)'
+)
 fig.show()
 ```
 
-Pero, ¿quién consume el agua? 
+
+:::
+:::
+
+::: {.section-divider}
+:::
+
+::: {#calculadora .section}
+::: {.page-wrapper}
+
+::: {.card-title .card-title--primary}
+Calculadora de Deuda 
+:::
+
+::: {.dual-panel .dual-panel--spaced}
+::: {.input-panel}
+::: {.section-title}
+¿Cuánto gasto y cuánto queda?
+:::
+Perfiles de consumo diario
 
 ```{python}
-import plotly.graph_objects as go
-import requests
+escenarios = pd.DataFrame([
+  {"Perfil": "Conservador", "Ducha_min": 5, "Cafe_tazas": 1, "Carne_porciones": 0.5},
+  {"Perfil": "Promedio", "Ducha_min": 8, "Cafe_tazas": 2, "Carne_porciones": 1.0},
+  {"Perfil": "Intensivo", "Ducha_min": 15, "Cafe_tazas": 4, "Carne_porciones": 2.0},
+])
 
-usage_cols = {
-    'Acuacultura (D)': 'Acuacultura',
-    'Agrícola (inscrito + pendiente) (A)': 'Agrícola',
-    'Agroindustrial (B)': 'Agroindustrial',
-    'Doméstico ( C)': 'Doméstico',
-    'Comercio (K)': 'Comercio',
-    'Industrial (F1)': 'Industrial',
-    'Múltiples (I)': 'Múltiples',
-    'Otros (L)': 'Otros',
-    'Pecuario (G)': 'Pecuario',
-    'Público urbano (H)': 'Público urbano',
-    'Servicios ( E )': 'Servicios',
-    'Termoeléctricas (F2)': 'Termoeléctricas'
-}
-
-colors = [
-    '#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A', '#19d3f3',
-    '#FF6692', '#B6E880', '#FF97FF', '#FECB52', '#1f77b4', '#ff7f0e'
-]
-
-estados = repda_2021["Estado"].tolist()
-
-# --- 1) Gráfica de barras ---
-fig_bar = go.Figure()
-for idx, (col_orig, col_label) in enumerate(usage_cols.items()):
-    fig_bar.add_trace(go.Bar(
-        y=repda_2021["Estado"],
-        x=repda_2021[col_orig],
-        name=col_label,
-        marker_color=colors[idx],
-        orientation='h'
-    ))
-
-fig_bar.update_layout(
-    barmode='stack',
-    xaxis_title='Hm³/año',
-    yaxis_title='Estado',
-    height=max(700, 28 * len(estados)),
-    margin={"l": 220, "r": 30, "t": 40, "b": 40},
-    hovermode='x unified',
-    legend=dict(orientation='v', yanchor='top', y=1, xanchor='left', x=1.01)
-)
-fig_bar.update_yaxes(tickmode="array", tickvals=estados, ticktext=estados, automargin=True)
-
-# --- 2) Gráfica de pastel (dropdown por estado) ---
-fig_pie = go.Figure()
-for state_idx, estado in enumerate(estados):
-    row_data = repda_2021[repda_2021["Estado"] == estado].iloc[0]
-    labels = list(usage_cols.values())
-    values = [row_data[col_key] for col_key in usage_cols.keys()]
-
-    fig_pie.add_trace(go.Pie(
-        labels=labels,
-        values=values,
-        name=estado,
-        marker=dict(colors=colors),
-        visible=(state_idx == 0),
-        hovertemplate="<b>%{label}</b><br>Hm³/año: %{value:.2f}<br>%{percent}<extra></extra>"
-    ))
-
-pie_buttons = []
-for idx, estado in enumerate(estados):
-    visibility = [False] * len(estados)
-    visibility[idx] = True
-    pie_buttons.append(dict(
-        label=estado,
-        method='update',
-        args=[{'visible': visibility}, {'title': f'Desglose de uso de agua en {estado}'}]
-    ))
-
-fig_pie.update_layout(
-    updatemenus=[dict(
-        buttons=pie_buttons,
-        direction="down",
-        pad={"r": 10, "t": 10},
-        showactive=True,
-        x=0.0,
-        xanchor="left",
-        y=1.15,
-        yanchor="top"
-    )],
-    title=f'Desglose de uso de agua en {estados[0]}',
-    height=700,
-    showlegend=True,
-    legend=dict(orientation='v', yanchor='middle', y=0.5, xanchor='left', x=1.02)
+escenarios["Deuda_litros"] = (
+  escenarios["Ducha_min"] * 10
+  + escenarios["Cafe_tazas"] * 140
+  + escenarios["Carne_porciones"] * 2000
 )
 
-# --- 3) Mapa (dropdown por uso) ---
-geojson_url = "https://raw.githubusercontent.com/angelnmara/geojson/master/mexicoHigh.json"
-geojson_data = requests.get(geojson_url).json()
+escenarios
+```
 
-fig_map = go.Figure()
-for usage_idx, (col_key, col_label) in enumerate(usage_cols.items()):
-    df_usage = repda_2021[['Estado', col_key]].rename(columns={col_key: 'Volumen'})
+::: {.callout-box}
+[Referencia Nacional]{.callout-label}
 
-    fig_map.add_trace(go.Choropleth(
-        locations=df_usage['Estado'],
-        z=df_usage['Volumen'],
-        customdata=df_usage[['Estado']],
-        locationmode='geojson-id',
-        colorscale='Viridis',
-        featureidkey='properties.name',
-        geojson=geojson_data,
-        marker_line_width=0.5,
-        colorbar=dict(
-            title=dict(text="Hm³/año", font=dict(size=12)),
-            thickness=20,
-            len=0.8,
-            ticklabelposition="outside",
-            tickfont=dict(size=11)
+[Perfil promedio: 2,360 litros diarios]{.callout-value}
+:::
+
+:::
+
+::: {.graph-container}
+
+```{python}
+fig_calc = go.Figure()
+
+fig_calc.add_trace(
+    go.Bar(
+        x=escenarios["Perfil"],
+        y=escenarios["Deuda_litros"],
+        marker=dict(color=["#00C8B4", "#0066FF", "#FF3B3B"]),
+        text=escenarios["Deuda_litros"].map(lambda x: f"{int(x):,} L"),
+        textposition="outside",
+        name="Deuda diaria",
+    )
+)
+
+fig_calc.update_layout(
+    template="plotly_white",
+    margin=dict(l=10, r=10, t=20, b=10),
+    height=360,
+    showlegend=False,
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="DM Sans"),
+)
+fig_calc.update_yaxes(title="Litros diarios", gridcolor="#F0F5FF")
+fig_calc.show()
+```
+:::
+
+:::
+:::
+:::
+:::
+
+::: {.section-divider}
+:::
+
+::: {#brecha .section .section-alt}
+::: {.page-wrapper}
+
+::: {.section-header}
+[Sección 3 · La Brecha del Grifo]{.section-label}
+
+[¿A quién le falta lo que yo tengo?]{.section-title} 
+
+[En México, tu dirección postal determina si recibes agua las 24 horas o una vez a la semana. La inequidad hídrica también es una deuda de tiempo que pagan las mujeres.]{.section-desc}
+:::
+:::
+
+::: {.quote-block}
+"Quienes menos tienen terminan pagando hasta 10 veces más por litro de agua que quienes tienen red fija.
+¿Cuántos litros recibe al día el 10% más rico vs. el 10% más pobre?"
+:::
+
+::: {.grid-two}
+::: {.card}
+::: {.card-title}
+Precio por litro — Usuario de pipa
+:::
+::: {.card-value .card-value--danger}
+$0.10–$0.50
+:::
+::: {.card-unit}
+pesos/litro · hasta 10× más caro
+:::
+:::
+::: {.card}
+::: {.card-title}
+Precio por litro — Red fija residencial
+:::
+::: {.card-value .card-value--primary}
+$0.01–$0.05
+:::
+::: {.card-unit}
+pesos/litro · tarifa subsidiada
+:::
+:::
+:::
+
+::: {.grid-auto-320}
+::: {.card}
+::: {.card-title .card-title--compact}
+Acceso al Agua por Tipo de Fuente — Indicador 1.4.1
+:::
+
+```{python}
+fig1 = go.Figure()
+labels_acceso = ["Red continua", "Llave pública", "Pipa de agua", "Acarreo/otros"]
+fig1.add_trace(go.Bar(y=labels_acceso, x=[57.4, 5.2, 8.3, 29.1], name="2016", orientation='h', marker=dict(color='rgba(184,212,255,0.9)')))
+fig1.add_trace(go.Bar(y=labels_acceso, x=[54.8, 6.1, 9.7, 29.4], name="2019", orientation='h', marker=dict(color='rgba(0,102,255,0.85)')))
+fig1.update_layout(barmode='group', template='plotly_white', margin=dict(l=0, r=10, t=30, b=0), height=240, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5, font=dict(color="#4A5568")), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(family="DM Sans"))
+fig1.update_xaxes(showgrid=True, gridcolor='#5c677d', ticksuffix="%")
+fig1.update_yaxes(showgrid=False, autorange="reversed")
+fig1.show()
+```
+:::
+
+::: {.card}
+::: {.card-title .card-title--compact}
+⚧ Deuda de Tiempo — Serie 1142
+:::
+[Las mujeres en México dedican en promedio 6.4 horas diarias a labores de cuidado y hogar (ENUT/INEGI). En hogares sin red de agua, esta cifra aumenta entre 2 y 4 horas adicionales.]{.text-note}
+```{python}
+fig2 = go.Figure()
+labels_genero = ["Mujeres sin red", "Mujeres con red", "Hombres sin red", "Hombres con red"]
+colors_genero = ["#FF3B3B", "#FF9A3B", "#2B8BFF", "#B8D4FF"]
+fig2.add_trace(go.Bar(y=labels_genero, x=[48.5, 38.2, 14.1, 10.3], orientation='h', marker=dict(color=colors_genero)))
+fig2.update_layout(template='plotly_white', margin=dict(l=0, r=10, t=0, b=0), height=180, showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(family="DM Sans"))
+fig2.update_xaxes(showgrid=True, gridcolor='#F0F5FF', ticksuffix="h")
+fig2.update_yaxes(showgrid=False, autorange="reversed")
+fig2.show()
+```
+[Fuente: Serie 1142 — Horas semanales en trabajo no remunerado de cuidados / hogar]{.text-note .text-note--muted}
+:::
+:::
+
+::: {.section-divider}
+:::
+
+::: {#dia-cero .section .section-dia-cero}
+::: {.page-wrapper}
+
+```{python}
+cp_zonas = pd.DataFrame([
+    {"CP_referencia": 10000, "Zona": "Valle de México - CDMX", "Estado": "Ciudad de México", "RHA": "XIII Valle de México", "Presion": 91.3, "Reserva": 12.5, "Anos": 1.8, "Poblacion": "9,200,000", "Estres": "Crítico", "Color": "#FF3B3B"},
+    {"CP_referencia": 64000, "Zona": "Cuenca Río San Juan - NL", "Estado": "Nuevo León", "RHA": "IV Bravo-Conchos", "Presion": 88.2, "Reserva": 14.1, "Anos": 2.4, "Poblacion": "5,300,000", "Estres": "Crítico", "Color": "#FF3B3B"},
+    {"CP_referencia": 44100, "Zona": "Cuenca Lago Chapala - JAL", "Estado": "Jalisco", "RHA": "VIII Lerma-Santiago", "Presion": 62.8, "Reserva": 34.0, "Anos": 8.5, "Poblacion": "5,200,000", "Estres": "Alta", "Color": "#FF9A3B"},
+    {"CP_referencia": 21000, "Zona": "Cuenca Río Colorado - BC", "Estado": "Baja California", "RHA": "I Pen. Baja California", "Presion": 82.5, "Reserva": 11.8, "Anos": 2.1, "Poblacion": "1,900,000", "Estres": "Muy Alta", "Color": "#FF3B3B"},
+    {"CP_referencia": 97000, "Zona": "Zona Karst Yucatán - Mérida", "Estado": "Yucatán", "RHA": "XII Península Yucatán", "Presion": 31.5, "Reserva": 65.0, "Anos": 22.0, "Poblacion": "1,100,000", "Estres": "Baja-Media", "Color": "#00C8B4"},
+])
+
+cp_zonas[["CP_referencia", "Zona", "Estado", "Presion", "Reserva", "Anos", "Estres"]]
+```
+
+```{python}
+fig_cp = go.Figure()
+
+fig_cp.add_trace(
+    go.Scatter(
+        x=cp_zonas["Presion"],
+        y=cp_zonas["Reserva"],
+        mode="markers+text",
+        text=cp_zonas["Estado"],
+        textposition="top center",
+        marker=dict(size=16, color=cp_zonas["Color"], line=dict(color="white", width=1.5)),
+        customdata=cp_zonas[["Zona", "RHA", "Anos", "Estres"]],
+        hovertemplate=(
+            "Estado: %{text}\n"
+            "Zona: %{customdata[0]}\n"
+            "RHA: %{customdata[1]}\n"
+            "Presión: %{x}%\n"
+            "Reserva: %{y}%\n"
+            "Años estimados: %{customdata[2]}\n"
+            "Estrés: %{customdata[3]}"
         ),
-        hovertemplate="<b>%{customdata[0]}</b><br>" + col_label + ": %{z:.2f} Hm³/año<extra></extra>",
-        visible=(usage_idx == 0),
-        name=col_label
-    ))
-
-map_buttons = []
-for idx, (_, col_label) in enumerate(usage_cols.items()):
-    visibility = [False] * len(usage_cols)
-    visibility[idx] = True
-    map_buttons.append(dict(
-        label=col_label,
-        method='update',
-        args=[{'visible': visibility}, {'title': f'Consumo de agua por {col_label} en México (Hm³/año)'}]
-    ))
-
-_ = fig_map.update_layout(
-    updatemenus=[dict(
-        buttons=map_buttons,
-        direction="down",
-        pad={"r": 10, "t": 10},
-        showactive=True,
-        x=0.0,
-        xanchor="left",
-        y=1.05,
-        yanchor="top"
-    )],
-    title=f'Consumo de agua por {list(usage_cols.values())[0]} en México (Hm³/año)',
-    geo=dict(
-        fitbounds='locations',
-        showland=True,
-        showframe=False,
-        showcoastlines=False,
-        landcolor='rgb(243, 243, 243)',
-        projection_type='mercator'
-    ),
-    height=700,
-    width=1000
+    )
 )
+
+fig_cp.update_layout(
+    template="plotly_white",
+    margin=dict(l=10, r=10, t=10, b=10),
+    height=360,
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="DM Sans"),
+)
+fig_cp.update_xaxes(title="Presión hídrica (%)", gridcolor="#F0F5FF")
+fig_cp.update_yaxes(title="Reserva disponible (%)", gridcolor="#F0F5FF")
+fig_cp.show()
 ```
 
-::: {.panel-tabset}
+::: {.quote-block}
+Este panel conserva la comparación por zonas y elimina entradas interactivas basadas en JavaScript externo para mantener una renderización reproducible en cualquier entorno Quarto.
+:::
 
-## Gráfica de barras
+::: {.card .card-spacious}
+::: {.card-title .card-title--dark}
+Grado de Presión Hídrica Nacional — Centro y Norte 2012–2023 · Indicador 6n.2.1
+:::
 
 ```{python}
-fig_bar
+data_presion = {
+    'Año': [2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023],
+    'Presion': [53.1, 51.9, 54.8, 55.4, 55.3, 55.3, 55.8, 55.7, 56.2, 56.4, 56.6, 55.9]
+}
+df_p = pd.DataFrame(data_presion)
+
+fig3 = go.Figure()
+fig3.add_trace(go.Scatter(x=df_p['Año'], y=df_p['Presion'], fill='tozeroy', mode='lines+markers', name='Grado de presión (%)', line=dict(color='#2B8BFF', width=3), fillcolor='rgba(43,139,255,0.1)', marker=dict(size=8, color='#0066FF')))
+fig3.add_trace(go.Scatter(x=df_p['Año'], y=[55]*len(df_p), mode='lines', name='Umbral crítico (55%)', line=dict(color='#FF3B3B', width=2, dash='dash')))
+
+fig3.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=20, b=0), height=200, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), paper_bgcolor='rgba(0, 0, 0, 0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(family="DM Sans"))
+fig3.update_xaxes(showgrid=False, tickmode='linear', tick0=2012, dtick=1)
+fig3.update_yaxes(gridcolor='rgba(255,255,255,0.08)', range=[48, 60], ticksuffix="%")
+fig3.show()
 ```
+:::
 
-## Gráfica de pastel
+:::
+:::
 
-```{python}
-fig_pie
-```
+::: {.section-divider}
+:::
+::: {#resolucion .section}
+::: {.page-wrapper}
 
-## Mapa
+::: {.resolution-intro}
+[Sección 5 · Resolución]{.section-label .section-label--center}
 
-```{python}
-fig_map
-```
+[El primer paso para pagar una deuda es reconocer que existe.]{.section-title .section-title--center}
+[Al entender la deuda líquida que compartimos, podemos dejar de administrar la escasez y empezar a diseñar la abundancia. Los datos que visualizaste hoy son el México que sobrevivirá mañana si actuamos.]{.resolution-copy}
 
+::: {.quote-block .quote-block--left}
+"No heredamos el agua de nuestros padres, la tomamos prestada de nuestros hijos." — Proverbio indígena
+:::
+:::
+:::
+:::
+
+::: {.solutions-grid}
+
+::: {.solution-card}
+::: {.solution-icon}
+🚿
+**Reduce tu ducha a 5 minutos**
+Cada minuto que ahorras son 10 litros de agua potable. Con 120 millones de mexicanos, un minuto menos por persona equivale a 1.2 millones de m3 diarios devueltos al acuífero.
+
+:::
+:::
+
+
+::: {.solution-card}
+::: {.solution-icon}
+🥩
+**Reduce carne un día a la semana**
+Un kilo de carne de res requiere aproximadamente 15,000 litros de agua. Reducir un día a la semana por hogar equivale a ahorrar alrededor de 780 litros semanales en huella hídrica.
+
+:::
+:::
+
+
+::: {.solution-card}
+::: {.solution-icon}
+🌧️
+**Instala captación de lluvia**
+Un techo de 50 m2 puede captar hasta 30,000 litros al año. Esta inversión puede cubrir el 40% del consumo doméstico y reducir la extracción del acuífero.
+
+:::
+:::
+
+
+::: {.solution-card .solution-card--featured}
+::: {.solution-icon}
+💧
+[Comparte este dashboard]{.featured-title}
+[La deuda hídrica es colectiva. Cada persona que visualiza sus datos es un agente de cambio potencial. Convierte tu 'huella de sed' en una huella de acción.]{.featured-text}
+
+:::
+:::
+:::
+:::
+
+::: {.outro-box}
+::: {.outro-title}
+Objetivo: Dejar de ser espectador de la crisis.
+:::
+[Identifica tu impacto y convierte tu 'huella de sed' en una huella de cambio. En el México de hoy, cada gota que visualizamos es una gota que podemos salvar.]{.outro-copy}
+
+::: {.badge-row}
+[🌊 ODS 6 — Agua Limpia y Saneamiento]{.badge}
+[📊 Datos: INEGI / CONAGUA 2023]{.badge}
+[🇲🇽 Hackathon Tlamatipohua]{.badge}
+
+:::
+:::
+
+
+::: {.footer}
+Tlamatipohua · Dashboard ODS 6 — Deuda Líquida · Hackathon México 2026
+Datos: INEGI Indicadores 6.4.2, 6n.2.1 · CONAGUA · Módulo ENUT Serie 1142
 :::
