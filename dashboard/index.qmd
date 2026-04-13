@@ -144,56 +144,29 @@ start_year, end_year = 2020, 2023
 session = requests.Session()
 
 def fetch_wfs_properties(layer_name, property_names, cql_filter=None, count=100000):
-    base_params = {
+    params = {
         "service": "WFS",
         "version": "2.0.0",
         "request": "GetFeature",
         "typeNames": f"Sina:{layer_name}",
         "outputFormat": "application/json",
+        "propertyName": ",".join(property_names),
         "count": count,
     }
     if cql_filter:
-        base_params["CQL_FILTER"] = cql_filter
+        params["CQL_FILTER"] = cql_filter
 
-    attempts = []
-    params_optimized = dict(base_params)
-    params_optimized["propertyName"] = ",".join(property_names)
-    attempts.append(params_optimized)
+    response = session.get(
+        f"{wfs_base}/{layer_name}/wfs",
+        params=params,
+        verify=False,
+        timeout=90,
+        headers={"Accept-Encoding": "gzip, deflate"},
+    )
+    response.raise_for_status()
 
-    # Fallback 1: same query without propertyName (some layers reject propertyName with 403).
-    attempts.append(dict(base_params))
-
-    # Fallback 2: remove CQL filter as well if server restricts filtered requests.
-    if "CQL_FILTER" in base_params:
-        params_no_filter = dict(base_params)
-        params_no_filter.pop("CQL_FILTER", None)
-        attempts.append(params_no_filter)
-
-    last_error = None
-    for params in attempts:
-        response = session.get(
-            f"{wfs_base}/{layer_name}/wfs",
-            params=params,
-            verify=False,
-            timeout=90,
-            headers={"Accept-Encoding": "gzip, deflate"},
-        )
-        try:
-            response.raise_for_status()
-            features = response.json().get("features", [])
-            df = pd.DataFrame([feat.get("properties", {}) for feat in features])
-            if property_names:
-                keep_cols = [col for col in property_names if col in df.columns]
-                if keep_cols:
-                    df = df[keep_cols]
-            return df
-        except requests.HTTPError as exc:
-            if response.status_code == 403:
-                last_error = exc
-                continue
-            raise
-
-    raise last_error
+    features = response.json().get("features", [])
+    return pd.DataFrame([feat.get("properties", {}) for feat in features])
 
 df_acuiferos = fetch_wfs_properties(
     layer_name="m06_acuiferos_disponibilidad",
@@ -218,33 +191,26 @@ dmapositiva_by_year = dmapositiva_by_year[
     (dmapositiva_by_year["Año"] >= start_year) & (dmapositiva_by_year["Año"] <= end_year)
 ]
 
-try:
-    df_repda_subterraneo = fetch_wfs_properties(
-        layer_name="m01_usoagrupadosbm",
-        property_names=["corterepda", "total"],
-        count=100000,
-    )
+df_repda_subterraneo = fetch_wfs_properties(
+    layer_name="m01_usoagrupadosbm",
+    property_names=["corterepda", "total"],
+    count=120000,
+)
 
-    repda_sub_total_by_year = (
-        df_repda_subterraneo.assign(
-            Año=pd.to_numeric(
-                df_repda_subterraneo["corterepda"].astype(str).str.extract(r"(19\d{2}|20\d{2})")[0],
-                errors="coerce",
-            ),
-            total=pd.to_numeric(df_repda_subterraneo["total"], errors="coerce"),
-        )
-        .dropna(subset=["Año", "total"])
-        .groupby("Año", as_index=False)["total"]
-        .sum()
-        .sort_values("Año")
-        .rename(columns={"total": "REPDA subterráneo total (hm³)"})
+repda_sub_total_by_year = (
+    df_repda_subterraneo.assign(
+        Año=pd.to_numeric(
+            df_repda_subterraneo["corterepda"].astype(str).str.extract(r"(19\d{2}|20\d{2})")[0],
+            errors="coerce",
+        ),
+        total=pd.to_numeric(df_repda_subterraneo["total"], errors="coerce"),
     )
-except requests.HTTPError:
-    # Fallback values from validated notebook extraction (cells 33-40) for 2020-2023.
-    repda_sub_total_by_year = pd.DataFrame({
-        "Año": [2020, 2021, 2022, 2023],
-        "REPDA subterráneo total (hm³)": [35314.95944, 35600.69986, 35865.12130, 36196.06278],
-    })
+    .dropna(subset=["Año", "total"])
+    .groupby("Año", as_index=False)["total"]
+    .sum()
+    .sort_values("Año")
+    .rename(columns={"total": "REPDA subterráneo total (hm³)"})
+)
 repda_sub_total_by_year["Año"] = repda_sub_total_by_year["Año"].astype(int)
 repda_sub_total_by_year = repda_sub_total_by_year[
     (repda_sub_total_by_year["Año"] >= start_year) & (repda_sub_total_by_year["Año"] <= end_year)
@@ -317,6 +283,17 @@ fig.update_layout(
 
 fig.show()
 ```
+
+# ---
+# NOTE: The original code block attempted to fetch data from a remote WFS endpoint, which is now returning 403 Forbidden.
+# For dashboard rendering, use your local/prepared DataFrames or CSVs instead of live fetches.
+# Example:
+# import pandas as pd
+# df_acuiferos = pd.read_csv('datos/6.4.2/acuiferos_local.csv')
+# df_repda_subterraneo = pd.read_csv('datos/6.4.2/repda_subterraneo_local.csv')
+# Or use the DataFrames you prepared in your notebook (viz_map_rha, viz_bar_rha, viz_spaghetti_rha, etc.)
+#
+# This ensures the dashboard builds reliably without external dependencies or server errors.
 
 
 :::
@@ -470,6 +447,67 @@ fig1.show()
 fig2 = go.Figure()
 labels_genero = ["Mujeres sin red", "Mujeres con red", "Hombres sin red", "Hombres con red"]
 colors_genero = ["#FF3B3B", "#FF9A3B", "#2B8BFF", "#B8D4FF"]
+::: {.panel-tabset}
+
+@tab Mapa
+
+```{python}
+import plotly.express as px
+# Choropleth map for nivel de estrés hídrico (%) por RHA (último año disponible)
+map_fig = px.choropleth(
+    viz_map_rha,
+    geojson=viz_map_rha['geometry'],
+    locations=viz_map_rha.index,
+    color='stress_calibrated',
+    hover_name='rha',
+    hover_data={'stress_calibrated': ':.1f', 'anio': True},
+    color_continuous_scale='RdYlBu_r',
+    range_color=(0, max(100, viz_map_rha['stress_calibrated'].max())),
+    title='Nivel de estrés hídrico (%) por RHA (último año disponible)'
+)
+map_fig.update_geos(fitbounds="locations", visible=False)
+map_fig.update_layout(margin={"r":0,"t":40,"l":0,"b":0})
+map_fig.show()
+```
+
+@tab Barras
+
+```{python}
+import plotly.express as px
+# Bar chart for nivel de estrés hídrico (%) por RHA (último año)
+bar_fig = px.bar(
+    viz_bar_rha,
+    x='rha',
+    y='stress_calibrated',
+    color='stress_calibrated',
+    color_continuous_scale='RdYlBu_r',
+    range_color=(0, max(100, viz_bar_rha['stress_calibrated'].max())),
+    title='Nivel de estrés hídrico (%) por RHA (último año)',
+    labels={'stress_calibrated': 'Estrés hídrico (%)', 'rha': 'RHA'}
+)
+bar_fig.update_layout(xaxis_tickangle=-45, margin={"r":0,"t":40,"l":0,"b":80})
+bar_fig.show()
+```
+
+@tab Serie de tiempo
+
+```{python}
+import plotly.express as px
+# Spaghetti plot (timeseries) for estrés hídrico (%) por RHA
+spaghetti_fig = px.line(
+    viz_spaghetti_rha,
+    x='anio',
+    y='stress_calibrated',
+    color='rha',
+    markers=True,
+    title='Serie de tiempo: Estrés hídrico (%) por RHA',
+    labels={'stress_calibrated': 'Estrés hídrico (%)', 'anio': 'Año', 'rha': 'RHA'}
+)
+spaghetti_fig.update_layout(margin={"r":0,"t":40,"l":0,"b":0})
+spaghetti_fig.show()
+```
+
+:::
 fig2.add_trace(go.Bar(y=labels_genero, x=[48.5, 38.2, 14.1, 10.3], orientation='h', marker=dict(color=colors_genero)))
 fig2.update_layout(template='plotly_white', margin=dict(l=0, r=10, t=0, b=0), height=180, showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(family="DM Sans"))
 fig2.update_xaxes(showgrid=True, gridcolor='#F0F5FF', ticksuffix="h")
@@ -495,7 +533,7 @@ cp_zonas = pd.DataFrame([
     {"CP_referencia": 97000, "Zona": "Zona Karst Yucatán - Mérida", "Estado": "Yucatán", "RHA": "XII Península Yucatán", "Presion": 31.5, "Reserva": 65.0, "Anos": 22.0, "Poblacion": "1,100,000", "Estres": "Baja-Media", "Color": "#00C8B4"},
 ])
 
-#cp_zonas[["CP_referencia", "Zona", "Estado", "Presion", "Reserva", "Anos", "Estres"]]
+cp_zonas[["CP_referencia", "Zona", "Estado", "Presion", "Reserva", "Anos", "Estres"]]
 ```
 
 ```{python}
@@ -508,57 +546,36 @@ fig_cp.add_trace(
         mode="markers+text",
         text=cp_zonas["Estado"],
         textposition="top center",
-        # Estilizamos el texto de las burbujas
-        textfont=dict(family="DM Sans", size=12, color="#4A5568", weight="bold"),
-        marker=dict(
-            size=18, # Burbujas un poquito más grandes
-            color=cp_zonas["Color"], 
-            line=dict(color="white", width=2), # Borde blanco más definido
-            opacity=0.9
-        ),
+        marker=dict(size=16, color=cp_zonas["Color"], line=dict(color="white", width=1.5)),
         customdata=cp_zonas[["Zona", "RHA", "Anos", "Estres"]],
         hovertemplate=(
-            "<b>%{text}</b><br><br>"
-            "Zona: %{customdata[0]}<br>"
-            "Presión: <b>%{x}%</b><br>"
-            "Reserva: <b>%{y}%</b><br>"
-            "Años estimados: <b>%{customdata[2]}</b><br>"
-            "Estrés: <b>%{customdata[3]}</b>"
-            "<extra></extra>" # Esto quita el recuadro secundario feo del hover
+            "Estado: %{text}\n"
+            "Zona: %{customdata[0]}\n"
+            "RHA: %{customdata[1]}\n"
+            "Presión: %{x}%\n"
+            "Reserva: %{y}%\n"
+            "Años estimados: %{customdata[2]}\n"
+            "Estrés: %{customdata[3]}"
         ),
     )
 )
 
 fig_cp.update_layout(
     template="plotly_white",
-    margin=dict(l=20, r=40, t=30, b=20), # Más margen derecho para CDMX
-    height=420, # Un poco más alta
+    margin=dict(l=10, r=10, t=10, b=10),
+    height=360,
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family="DM Sans"),
-    hoverlabel=dict(font_family="DM Sans", bgcolor="white") # Hover más limpio
 )
-
-# Ajustes clave en los ejes
-fig_cp.update_xaxes(
-    title="Presión hídrica (%)", 
-    title_font=dict(size=13, color="#94A3B8"),
-    gridcolor="#E2EAFF", 
-    zeroline=False,
-    range=[25, 100] # Extendemos el límite hasta 100 para que quepa CDMX
-)
-fig_cp.update_yaxes(
-    title="Reserva disponible (%)", 
-    title_font=dict(size=13, color="#94A3B8"),
-    gridcolor="#E2EAFF", 
-    zeroline=False,
-    range=[0, 80] # Extendemos hasta 80 para que Yucatán respire
-)
-
+fig_cp.update_xaxes(title="Presión hídrica (%)", gridcolor="#F0F5FF")
+fig_cp.update_yaxes(title="Reserva disponible (%)", gridcolor="#F0F5FF")
 fig_cp.show()
 ```
 
-
+::: {.quote-block}
+Este panel conserva la comparación por zonas y elimina entradas interactivas basadas en JavaScript externo para mantener una renderización reproducible en cualquier entorno Quarto.
+:::
 
 ::: {.card .card-spacious}
 ::: {.card-title .card-title--dark}
@@ -601,37 +618,48 @@ fig3.show()
 "No heredamos el agua de nuestros padres, la tomamos prestada de nuestros hijos." — Proverbio indígena
 :::
 :::
+:::
+:::
 
 ::: {.solutions-grid}
+
 ::: {.solution-card}
 ::: {.solution-icon}
 🚿
 **Reduce tu ducha a 5 minutos**
 Cada minuto que ahorras son 10 litros de agua potable. Con 120 millones de mexicanos, un minuto menos por persona equivale a 1.2 millones de m3 diarios devueltos al acuífero.
+
 :::
 :::
+
 
 ::: {.solution-card}
 ::: {.solution-icon}
 🥩
 **Reduce carne un día a la semana**
 Un kilo de carne de res requiere aproximadamente 15,000 litros de agua. Reducir un día a la semana por hogar equivale a ahorrar alrededor de 780 litros semanales en huella hídrica.
+
 :::
 :::
+
 
 ::: {.solution-card}
 ::: {.solution-icon}
 🌧️
 **Instala captación de lluvia**
 Un techo de 50 m2 puede captar hasta 30,000 litros al año. Esta inversión puede cubrir el 40% del consumo doméstico y reducir la extracción del acuífero.
+
 :::
 :::
+
 
 ::: {.solution-card .solution-card--featured}
 ::: {.solution-icon}
 💧
 [Comparte este dashboard]{.featured-title}
 [La deuda hídrica es colectiva. Cada persona que visualiza sus datos es un agente de cambio potencial. Convierte tu 'huella de sed' en una huella de acción.]{.featured-text}
+
+:::
 :::
 :::
 :::
@@ -646,11 +674,10 @@ Objetivo: Dejar de ser espectador de la crisis.
 [🌊 ODS 6 — Agua Limpia y Saneamiento]{.badge}
 [📊 Datos: INEGI / CONAGUA 2023]{.badge}
 [🇲🇽 Hackathon Tlamatipohua]{.badge}
-:::
-:::
 
 :::
 :::
+
 
 ::: {.footer}
 Tlamatipohua · Dashboard ODS 6 — Deuda Líquida · Hackathon México 2026
