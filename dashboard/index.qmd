@@ -375,7 +375,7 @@ cp_zonas = pd.DataFrame([
     {"CP_referencia": 97000, "Zona": "Zona Karst Yucatán - Mérida", "Estado": "Yucatán", "RHA": "XII Península Yucatán", "Presion": 31.5, "Reserva": 65.0, "Anos": 22.0, "Poblacion": "1,100,000", "Estres": "Baja-Media", "Color": "#00C8B4"},
 ])
 
-cp_zonas[["CP_referencia", "Zona", "Estado", "Presion", "Reserva", "Anos", "Estres"]]
+#cp_zonas[["CP_referencia", "Zona", "Estado", "Presion", "Reserva", "Anos", "Estres"]]
 ```
 
 ```{python}
@@ -388,36 +388,57 @@ fig_cp.add_trace(
         mode="markers+text",
         text=cp_zonas["Estado"],
         textposition="top center",
-        marker=dict(size=16, color=cp_zonas["Color"], line=dict(color="white", width=1.5)),
+        # Estilizamos el texto de las burbujas
+        textfont=dict(family="DM Sans", size=12, color="#4A5568", weight="bold"),
+        marker=dict(
+            size=18, # Burbujas un poquito más grandes
+            color=cp_zonas["Color"], 
+            line=dict(color="white", width=2), # Borde blanco más definido
+            opacity=0.9
+        ),
         customdata=cp_zonas[["Zona", "RHA", "Anos", "Estres"]],
         hovertemplate=(
-            "Estado: %{text}\n"
-            "Zona: %{customdata[0]}\n"
-            "RHA: %{customdata[1]}\n"
-            "Presión: %{x}%\n"
-            "Reserva: %{y}%\n"
-            "Años estimados: %{customdata[2]}\n"
-            "Estrés: %{customdata[3]}"
+            "<b>%{text}</b><br><br>"
+            "Zona: %{customdata[0]}<br>"
+            "Presión: <b>%{x}%</b><br>"
+            "Reserva: <b>%{y}%</b><br>"
+            "Años estimados: <b>%{customdata[2]}</b><br>"
+            "Estrés: <b>%{customdata[3]}</b>"
+            "<extra></extra>" # Esto quita el recuadro secundario feo del hover
         ),
     )
 )
 
 fig_cp.update_layout(
     template="plotly_white",
-    margin=dict(l=10, r=10, t=10, b=10),
-    height=360,
+    margin=dict(l=20, r=40, t=30, b=20), # Más margen derecho para CDMX
+    height=420, # Un poco más alta
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family="DM Sans"),
+    hoverlabel=dict(font_family="DM Sans", bgcolor="white") # Hover más limpio
 )
-fig_cp.update_xaxes(title="Presión hídrica (%)", gridcolor="#F0F5FF")
-fig_cp.update_yaxes(title="Reserva disponible (%)", gridcolor="#F0F5FF")
+
+# Ajustes clave en los ejes
+fig_cp.update_xaxes(
+    title="Presión hídrica (%)", 
+    title_font=dict(size=13, color="#94A3B8"),
+    gridcolor="#E2EAFF", 
+    zeroline=False,
+    range=[25, 100] # Extendemos el límite hasta 100 para que quepa CDMX
+)
+fig_cp.update_yaxes(
+    title="Reserva disponible (%)", 
+    title_font=dict(size=13, color="#94A3B8"),
+    gridcolor="#E2EAFF", 
+    zeroline=False,
+    range=[0, 80] # Extendemos hasta 80 para que Yucatán respire
+)
+
 fig_cp.show()
 ```
 
-::: {.quote-block}
-Este panel conserva la comparación por zonas y elimina entradas interactivas basadas en JavaScript externo para mantener una renderización reproducible en cualquier entorno Quarto.
-:::
+
 
 ::: {.card .card-spacious}
 ::: {.card-title .card-title--dark}
@@ -460,48 +481,37 @@ fig3.show()
 "No heredamos el agua de nuestros padres, la tomamos prestada de nuestros hijos." — Proverbio indígena
 :::
 :::
-:::
-:::
 
 ::: {.solutions-grid}
-
 ::: {.solution-card}
 ::: {.solution-icon}
 🚿
 **Reduce tu ducha a 5 minutos**
 Cada minuto que ahorras son 10 litros de agua potable. Con 120 millones de mexicanos, un minuto menos por persona equivale a 1.2 millones de m3 diarios devueltos al acuífero.
-
 :::
 :::
-
 
 ::: {.solution-card}
 ::: {.solution-icon}
 🥩
 **Reduce carne un día a la semana**
 Un kilo de carne de res requiere aproximadamente 15,000 litros de agua. Reducir un día a la semana por hogar equivale a ahorrar alrededor de 780 litros semanales en huella hídrica.
-
 :::
 :::
-
 
 ::: {.solution-card}
 ::: {.solution-icon}
 🌧️
 **Instala captación de lluvia**
 Un techo de 50 m2 puede captar hasta 30,000 litros al año. Esta inversión puede cubrir el 40% del consumo doméstico y reducir la extracción del acuífero.
-
 :::
 :::
-
 
 ::: {.solution-card .solution-card--featured}
 ::: {.solution-icon}
 💧
 [Comparte este dashboard]{.featured-title}
 [La deuda hídrica es colectiva. Cada persona que visualiza sus datos es un agente de cambio potencial. Convierte tu 'huella de sed' en una huella de acción.]{.featured-text}
-
-:::
 :::
 :::
 :::
@@ -516,10 +526,11 @@ Objetivo: Dejar de ser espectador de la crisis.
 [🌊 ODS 6 — Agua Limpia y Saneamiento]{.badge}
 [📊 Datos: INEGI / CONAGUA 2023]{.badge}
 [🇲🇽 Hackathon Tlamatipohua]{.badge}
-
 :::
 :::
 
+:::
+:::
 
 ::: {.footer}
 Tlamatipohua · Dashboard ODS 6 — Deuda Líquida · Hackathon México 2026

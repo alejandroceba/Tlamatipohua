@@ -51,4 +51,38 @@ Comentarios 1º Mentoría 2026-04-10
 - Se hizo hincapié en crear una historia narrada que use lo que tenemos.
 - Se recomendó que al final se pueda convertir el tablero en una solución que se pueda obtener a través de un impacto social.
 
+-Justificación de datos
 
+INDICADOR 6.5.2 Proporción de la superficie de cuencas transfronterizas sujetas a arreglos operacionales para la cooperación en materia de aguas
+Identificar la disponibilidad (cuantitativamente) en distintas localidades de México.
+Identificar no solo cuánta hay en ciertas zonas, sino de dónde viene.
+INDICADOR 6.4.2 Nivel de estrés hídrico: extracción de agua dulce en proporción a los recursos de agua dulce disponibles
+Visibilizar zonas de explotación.
+Visibilizar datos reales sobre niveles de almacenamiento disponibles.
+INDICADOR 6.4.1 Cambio en el uso eficiente de los recursos hídricos con el paso del tiempo
+Visualizar la demanda en distintas localidades de México y sus usos.
+Diferenciar demanda de acuerdo a distintos sectores: de consumo personal, industrial, agrícola, etc. 
+NDICADOR 6.6.1 Cambio en la extensión de los ecosistemas relacionados con el agua con el paso del tiempo
+Identificar fenómenos relacionados con la disminución de precipitaciones. 
+Mapear días con sequías o lluvias extremas y su impacto en la recuperación del recurso. 
+Impacto económico de cambios en la distribución del agua en el país.
+INDICADOR 6.5.1 Grado de gestión integrada de los recursos hídricos
+INDICADOR 6.3.2 Proporción de masas de agua de buena calidad
+Identificar zonas críticas que necesitan atención y acción.
+Visibilizar impacto de fugas.
+Calcular la huella hídrica de la persona usuaria para explorar diferentes escenarios futuros de estrés hídrico.
+
+INEGI  Agua potable y saneamiento:  https://www.inegi.org.mx/programas/cngmd/2021/#datos_abiertos 
+Agua Subterránera por Estado: sections/Disponibilidad_Acuiferos.html
+SINA (Sistema Nacional de Información del Agua): para reproducir  y desagregar el indicador 6.4.2 de estrés de hídrico, porque no están disponibles en el SIODS:
+https://sinav30.conagua.gob.mx:8080/portalp.html 
+https://sinav30.conagua.gob.mx:8080
+https://sinav30.conagua.gob.mx:8080/Estadistico/#/grado
+https://sinav30.conagua.gob.mx:8080/Estadistico/#/repda
+https://sinav30.conagua.gob.mx:8080/Estadistico/#/aguaRenovable
+No tienen metadatos, los que sí tienen no se usan para calcular el estrés hídrico o están desagregados diferente: cuenc, municipio, estado, etc.
+INEGI (Encuesta Nacional de Ingresos y Gastos de los Hogares (ENIGH) 2024): https://www.inegi.org.mx/programas/enigh/nc/2024/#datos_abiertos 
+PIGOO (Programa de Indicadores de Gestión de Organismos Operadores): https://pigoo.imta.gob.mx/reportes_pigoo
+Programa Nacional Contra la Sequía (PRONACOSE): https://www.datos.gob.mx/dataset/programa_nacional_contra_sequia_pronacose
+BASE DE DATOS CLIMATOLÓGICA NACIONAL (SISTEMA CLICOM): https://cucapa-clicom.cicese.mx
+RENAMECA (Red Nacional de Medición de Calidad del Agua): https://www.gob.mx/conagua/es/articulos/resultados-de-la-red-nacional-de-medicion-de-calidad-del-agua-renameca?idiom=es
