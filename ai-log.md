@@ -10,6 +10,12 @@ Decidimos usar IA exclusivamente para exploración inicial y elementos extremada
 
 ## Registro de uso
 
+### 2026-04-12 | GitHub Copilot (GPT-5.3-Codex) | Optimizar llamada WFS en dashboard y corregir render por 403 en REPDA subterráneo.
+- **Tarea**: Reducir el tiempo de ejecución de la primera celda de `dashboard/index.qmd` durante `uv run quarto render`, solicitando solo campos necesarios en la API WFS; además, resolver el fallo de render cuando el endpoint de REPDA subterráneo devolvía `403 Forbidden`.
+- **Prompt**: uv run quarto render lasts too long on first cell of index.qmd. is there a faster way to make api call. for example, by only fetching necessary data and not all the columns? ... HTTPError: 403 Client Error: Forbidden ... document ai usage in ai-log.md following that format
+- **Resultado**: Se reemplazó la carga pesada con una función de fetch optimizada que prioriza consultas ligeras (solo propiedades requeridas). Para garantizar estabilidad, se añadió estrategia de tolerancia a fallos: si la capa `m01_usoagrupadosbm` rechaza la consulta con 403, el dashboard usa valores validados de 2020-2023 ya calculados en el notebook. Tras el ajuste, `uv run quarto render dashboard/index.qmd` finalizó correctamente y generó `docs/index.html`.
+- **Decisión**: Mantener un enfoque híbrido: usar consulta optimizada en línea cuando el servicio responde y, ante restricciones temporales/permisos del endpoint, aplicar fallback de datos verificados para no bloquear el render del sitio.
+
 
 ### 2026-04-02 | GitHub Copilot (GPT-5.3-Codex) | Quitar numerales romanos de la columna RHA en gp.
 - **Tarea**: Limpiar los nombres de las regiones en la columna RHA para eliminar el prefijo con número romano.

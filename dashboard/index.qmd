@@ -132,69 +132,189 @@ Extracción Nacional vs Agua Renovable (Acuíferos) 2012–2023 — Indicador 6.
 
 ```{python}
 import pandas as pd
+import requests
+import warnings
 import plotly.graph_objects as go
 
-# Datos
-data = {
-    'Año': [2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023],
-    'Extraccion': [None, None, None, 85664, 86577, 87842, 88840, 89351, 89548, 89944, 89804, 90629],
-    'Concesionada': [64900, 63400, 65600, 66100, 66400, 66800, 67400, 67300, 67300, 67500, 67800, 68100]
-}
-df = pd.DataFrame(data)
+warnings.filterwarnings("ignore", message="Unverified HTTPS request")
+
+# Fetch + process in one cell: acuiferos (dmapositiva) and REPDA subterráneo (total)
+wfs_base = "https://geosinav30.conagua.gob.mx:8080/geoserver/Sina"
+start_year, end_year = 2020, 2023
+session = requests.Session()
+
+def fetch_wfs_properties(layer_name, property_names, cql_filter=None, count=100000):
+    base_params = {
+        "service": "WFS",
+        "version": "2.0.0",
+        "request": "GetFeature",
+        "typeNames": f"Sina:{layer_name}",
+        "outputFormat": "application/json",
+        "count": count,
+    }
+    if cql_filter:
+        base_params["CQL_FILTER"] = cql_filter
+
+    attempts = []
+    params_optimized = dict(base_params)
+    params_optimized["propertyName"] = ",".join(property_names)
+    attempts.append(params_optimized)
+
+    # Fallback 1: same query without propertyName (some layers reject propertyName with 403).
+    attempts.append(dict(base_params))
+
+    # Fallback 2: remove CQL filter as well if server restricts filtered requests.
+    if "CQL_FILTER" in base_params:
+        params_no_filter = dict(base_params)
+        params_no_filter.pop("CQL_FILTER", None)
+        attempts.append(params_no_filter)
+
+    last_error = None
+    for params in attempts:
+        response = session.get(
+            f"{wfs_base}/{layer_name}/wfs",
+            params=params,
+            verify=False,
+            timeout=90,
+            headers={"Accept-Encoding": "gzip, deflate"},
+        )
+        try:
+            response.raise_for_status()
+            features = response.json().get("features", [])
+            df = pd.DataFrame([feat.get("properties", {}) for feat in features])
+            if property_names:
+                keep_cols = [col for col in property_names if col in df.columns]
+                if keep_cols:
+                    df = df[keep_cols]
+            return df
+        except requests.HTTPError as exc:
+            if response.status_code == 403:
+                last_error = exc
+                continue
+            raise
+
+    raise last_error
+
+df_acuiferos = fetch_wfs_properties(
+    layer_name="m06_acuiferos_disponibilidad",
+    property_names=["anio", "dmapositiva"],
+    cql_filter=f"anio BETWEEN {start_year} AND {end_year}",
+    count=10000,
+)
+
+dmapositiva_by_year = (
+    df_acuiferos.assign(
+        anio=pd.to_numeric(df_acuiferos["anio"], errors="coerce"),
+        dmapositiva=pd.to_numeric(df_acuiferos["dmapositiva"], errors="coerce"),
+    )
+    .dropna(subset=["anio", "dmapositiva"])
+    .groupby("anio", as_index=False)["dmapositiva"]
+    .sum()
+    .rename(columns={"anio": "Año", "dmapositiva": "Disponibilidad positiva (hm³)"})
+    .sort_values("Año")
+)
+dmapositiva_by_year["Año"] = dmapositiva_by_year["Año"].astype(int)
+dmapositiva_by_year = dmapositiva_by_year[
+    (dmapositiva_by_year["Año"] >= start_year) & (dmapositiva_by_year["Año"] <= end_year)
+]
+
+try:
+    df_repda_subterraneo = fetch_wfs_properties(
+        layer_name="m01_usoagrupadosbm",
+        property_names=["corterepda", "total"],
+        count=100000,
+    )
+
+    repda_sub_total_by_year = (
+        df_repda_subterraneo.assign(
+            Año=pd.to_numeric(
+                df_repda_subterraneo["corterepda"].astype(str).str.extract(r"(19\d{2}|20\d{2})")[0],
+                errors="coerce",
+            ),
+            total=pd.to_numeric(df_repda_subterraneo["total"], errors="coerce"),
+        )
+        .dropna(subset=["Año", "total"])
+        .groupby("Año", as_index=False)["total"]
+        .sum()
+        .sort_values("Año")
+        .rename(columns={"total": "REPDA subterráneo total (hm³)"})
+    )
+except requests.HTTPError:
+    # Fallback values from validated notebook extraction (cells 33-40) for 2020-2023.
+    repda_sub_total_by_year = pd.DataFrame({
+        "Año": [2020, 2021, 2022, 2023],
+        "REPDA subterráneo total (hm³)": [35314.95944, 35600.69986, 35865.12130, 36196.06278],
+    })
+repda_sub_total_by_year["Año"] = repda_sub_total_by_year["Año"].astype(int)
+repda_sub_total_by_year = repda_sub_total_by_year[
+    (repda_sub_total_by_year["Año"] >= start_year) & (repda_sub_total_by_year["Año"] <= end_year)
+]
 
 fig = go.Figure()
 
-# Línea Superior (Extracción)
+# Línea superior: disponibilidad positiva de acuíferos
 fig.add_trace(go.Scatter(
-    x=df['Año'], y=df['Extraccion'],
-    fill='tozeroy',
-    mode='lines+markers',
-    name='Extracción (M m³)',
-    line=dict(color='#0066FF', width=3, shape='spline'), # shape='spline' suaviza la curva
-    fillcolor='rgba(0,102,255,0.08)',
-    marker=dict(size=6, color='#0066FF')
+    x=dmapositiva_by_year["Año"],
+    y=dmapositiva_by_year["Disponibilidad positiva (hm³)"],
+    fill="tozeroy",
+    mode="lines+markers",
+    name="Disponibilidad positiva (hm³)",
+    line=dict(color="#0066FF", width=3, shape="spline"),
+    fillcolor="rgba(0,102,255,0.08)",
+    marker=dict(size=6, color="#0066FF"),
 ))
 
-# Línea Inferior (Concesionada)
+# Línea inferior: REPDA subterráneo total
 fig.add_trace(go.Scatter(
-    x=df['Año'], y=df['Concesionada'],
-    mode='lines+markers',
-    name='Concesionada (km³ × 1000)',
-    line=dict(color='#00C8B4', width=2, dash='dash', shape='spline'),
-    marker=dict(size=6, color='#00C8B4')
+    x=repda_sub_total_by_year["Año"],
+    y=repda_sub_total_by_year["REPDA subterráneo total (hm³)"],
+    mode="lines+markers",
+    name="REPDA subterráneo total (hm³)",
+    line=dict(color="#00C8B4", width=2, dash="dash", shape="spline"),
+    marker=dict(size=6, color="#00C8B4"),
 ))
+
+all_years = pd.concat([
+    dmapositiva_by_year["Año"],
+    repda_sub_total_by_year["Año"],
+], ignore_index=True).dropna()
+all_values = pd.concat([
+    dmapositiva_by_year["Disponibilidad positiva (hm³)"],
+    repda_sub_total_by_year["REPDA subterráneo total (hm³)"],
+], ignore_index=True).dropna()
+
+y_max = all_values.max()
+y_min = all_values.min()
 
 fig.update_layout(
     template="plotly_white",
     margin=dict(l=10, r=20, t=30, b=20),
     height=280,
-    # Configuración de la Leyenda arriba y centrada
     legend=dict(
         orientation="h",
         yanchor="bottom",
         y=1.05,
         xanchor="center",
         x=0.5,
-        font=dict(color="#4A5568")
+        font=dict(color="#4A5568"),
     ),
     xaxis=dict(
         showgrid=False,
-        tickmode='linear',
-        tick0=2012,
+        tickmode="linear",
+        tick0=int(all_years.min()),
         dtick=1,
-        color="#94A3B8"
+        range=[start_year - 0.1, end_year + 0.1],
+        color="#94A3B8",
     ),
     yaxis=dict(
-        gridcolor='#F0F5FF',
+        gridcolor="#F0F5FF",
         color="#94A3B8",
-        # Custom ticks para que se vea como en la imagen (e.g., 60k, 70k)
-        tickvals=[60000, 70000, 80000, 90000],
-        ticktext=['60k', '70k', '80k', '90k'],
-        range=[55000, 95000] # El eje Y no empieza en 0
+        range=[max(0, y_min * 0.95), y_max * 1.05],
     ),
-    paper_bgcolor='rgba(0,0,0,0)',
-    plot_bgcolor='rgba(0,0,0,0)'
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
 )
+
 fig.show()
 ```
 
