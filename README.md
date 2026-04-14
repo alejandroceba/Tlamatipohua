@@ -20,6 +20,7 @@ En este escenario, el agua en México ha pasado de ser un recurso abundante a co
 
 El primer paso para pagar una deuda es reconocer que existe, porque “No heredamos el agua de nuestros padres, la tomamos prestada de nuestros hijos.” — Proverbio indígena
 
+---------------------------------------------------
 Referencias de los datos utilizados y justificación: 
 
 - INDICADOR 6.5.2 Proporción de la superficie de cuencas transfronterizas sujetas a arreglos operacionales para la cooperación en materia de aguas.
@@ -56,14 +57,29 @@ Queremos identificar fenómenos relacionados con la disminución de precipitacio
 
 Buscamos identificar zonas críticas que necesitan atención y acción. Visibilizar el impacto de fugas. y calcular la deuda hídrica de la persona usuaria para explorar diferentes escenarios futuros de estrés hídrico.
 
+---------------------------------------------------
+Posibles combinaciones de datos:
 
+- INEGI (CNGMD 2021) y CONAGUA (SINA / Disponibilidad de Acuíferos)
+La crisis del agua en México no es solo falta de lluvia, es un problema de gobernanza y gestión territorial. Utilizaremos el Censo de Gobiernos Municipales para contrastar la infraestructura operativa contra la disponibilidad real de los acuíferos. Al cruzar estas fuentes, evidenciaremos la paradoja de las zonas con mayor estrés hídrico: son precisamente los polos de mayor crecimiento urbano que operan con infraestructuras deficientes (fugas y falta de medición), exacerbando la "deuda" al extraer más de lo que el ciclo natural permite recargar.
+
+- IMTA (PIGOO) y INEGI (ENIGH 2024)
+Para que el usuario entienda su "deuda líquida", es imperativo desglosar el uso del agua más allá del consumo doméstico. La integración del PIGOO nos permitirá  analizar la eficiencia de los organismos operadores, mientras que la ENIGH nos dará la perspectiva de desigualdad social. Esta combinación nos permitirá visibilizar la inequidad hídrica. El demostrar que el "gasto" de agua no es uniforme; depende del nivel de ingresos y del sector (agrícola vs. industrial vs. doméstico), lo que permitirá que el tablero asigne una responsabilidad proporcional al impacto real de cada perfil de usuario.
+
+- CONAGUA (PRONACOSE) y CICESE (Sistema CLICOM)
+La deuda hídrica se paga con el futuro. Analizaremos datos históricos de precipitación y sequía no como eventos aislados, sino como variables que condicionan la estabilidad social y económica. Al mapear días de sequía extrema frente a los datos de recuperación de recursos, el tablero no solo mostrará el pasado, sino que proyectará escenarios de riesgo. Esto permitirá al usuario comprender que la "deuda líquida" no es una metáfora, sino una insolvencia climática que compromete la seguridad alimentaria y la viabilidad de sus propias ciudades.
+
+- CONAGUA (RENAMECA 2024)
+Una cuenca con agua contaminada es, en términos prácticos, una cuenca vacía. Incluimos la Red Nacional de Medición de Calidad del Agua para matizar los datos de disponibilidad. Un país como México con estrés hídrico no puede permitirse la degradación de sus masas de agua. Visualizar la calidad nos permite identificar "zonas críticas" donde la deuda no es solo por falta de volumen, sino por una gestión fallida que ha invalidado el recurso para el consumo humano y ecosistémico, elevando el costo de saneamiento para las generaciones futuras.
+
+---------------------------------------------------
 LINK HACKODS 2026:
 - https://hackods.github.io
 
 ----------------------------------------------------
 Comentarios 1º Mentoría 2026-04-10
 
-Como equipo consideramos que pudimos atender los comentarios recibidos en la 1º Mentoría, claro el tablero aún esta en construcción. Asi que estamos abiertos a seguir escuchando comentarios y aprendiendo de distintas perspectivas que deseen contribuir con el desarrollo de la idea.
+Como equipo consideramos que pudimos atender los comentarios recibidos en la 1º Mentoría, claro el tablero aún está en construcción. Así que estamos abiertos a seguir escuchando comentarios y aprendiendo de distintas perspectivas que deseen contribuir con el desarrollo de la idea.
 
 - Necesidad de establecer la problemática principal a manera de pregunta acotada y definida en función de lo que más nos interesa visualizar y que permita realizar una reflexión sobre eso. Esta debe captar la atención del lector y causar intriga para que continúe leyendo la historia.
 - Se sugirió filtrar nuestra información recopilada (bases de datos) dependiendo del objetivo/pregunta general definida.
